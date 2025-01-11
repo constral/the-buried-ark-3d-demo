@@ -11,7 +11,7 @@
 
 
 // variables for player controls
-glm::vec3 playerPos = glm::vec3(30.0f, -9.0f, 30.0f);
+glm::vec3 playerPos = glm::vec3(-5.0f, 11.0f, -5.0f);
 float playerSpeed = 0.1f;
 float playerAngle = 0.0f;
 
@@ -23,7 +23,7 @@ float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
 Window window("Game Engine", 800, 800);
-Camera camera(glm::vec3(playerPos.x + 25.0f, -10.0f, playerPos.z + 25.0f));		// pozitia camerei
+Camera camera(glm::vec3(25.0f, -10.0f, 25.0f));		// pozitia camerei
 
 glm::vec3 lightColor = glm::vec3(1.0f);
 glm::vec3 lightPos = glm::vec3(-180.0f, 100.0f, -200.0f);
@@ -437,9 +437,18 @@ int main()
 // Obiecte
 
 	// daca nu incepe playerul la -20 se buleste absolut tot legat de coliziunile pe Y
-	vector_obiecte.push_back(Obiect(0, glm::vec3(30.0f, -20.0f, 30.0f), glm::vec3(10.0f, 10.0f, 10.0f), textures3));
+	// daca nu incepe de la 0, -20, 0, iarasi idk de ce se strica :)
+	vector_obiecte.push_back(Obiect(0, glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(3.0f, 10.0f, 3.0f), textures3));
 	vector_obiecte.push_back(Obiect(1, glm::vec3(-30.0f, 0.0f, -30.0f), glm::vec3(70.0f, 10.0f, 70.0f), textures));
 	vector_obiecte.push_back(Obiect(2, glm::vec3(20.0f, -30.0f, 20.0f), glm::vec3(10.0f, 70.0f, 30.0f), textures2));
+
+
+	vector_obiecte.push_back(Obiect(10, glm::vec3(0.0f, 10.0f, 0.0f), glm::vec3(52.0f, 20.0f, 4.0f), textures2));
+	vector_obiecte.push_back(Obiect(11, glm::vec3(48.0f, 10.0f, 5.0f), glm::vec3(4.0f, 20.0f, 28.0f), textures2));
+	vector_obiecte.push_back(Obiect(12, glm::vec3(10.0f, 10.0f, 19.0f), glm::vec3(38.0f, 20.0f, 4.0f), textures2));
+	vector_obiecte.push_back(Obiect(13, glm::vec3(5.0f, 10.0f, 10.0f), glm::vec3(38.0f, 20.0f, 4.0f), textures2));
+	vector_obiecte.push_back(Obiect(14, glm::vec3(0.0f, 10.0f, 5.0f), glm::vec3(5.0f, 20.0f, 47.0f), textures2));
+	vector_obiecte.push_back(Obiect(15, glm::vec3(10.0f, 10.0f, 25.0f), glm::vec3(5.0f, 20.0f, 20.0f), textures2));
 
 
 
