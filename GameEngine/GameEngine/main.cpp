@@ -22,7 +22,7 @@ glm::vec3 lightPos = glm::vec3(-180.0f, 100.0f, -200.0f);
 
 
 // variables for player controls
-glm::vec3 playerPos = glm::vec3(0.0f, -11.0f, 0.0f);
+glm::vec3 playerPos = glm::vec3(0.0f, -9.0f, 0.0f);
 float playerSpeed = 0.1f;
 float playerAngle = 0.0f;
 
@@ -465,7 +465,7 @@ int main()
 		}
 	*/
 
-		if (isColliding(vector_obiecte[0], vector_obiecte[2]) == 1) {
+		if (isColliding(vector_obiecte[0], vector_obiecte[1]) == 1) {
 			std::cout << "COLLISION" << std::endl;
 		}
 		else {
