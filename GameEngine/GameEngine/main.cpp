@@ -10,21 +10,26 @@
 
 
 
+// variables for player controls
+glm::vec3 playerPos = glm::vec3(30.0f, -9.0f, 30.0f);
+float playerSpeed = 0.1f;
+float playerAngle = 0.0f;
+
+
+
+
+
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
 Window window("Game Engine", 800, 800);
-Camera camera(glm::vec3(25.0f, -10.0f, 25.0f));		// pozitia camerei
+Camera camera(glm::vec3(playerPos.x + 25.0f, -10.0f, playerPos.z + 25.0f));		// pozitia camerei
 
 glm::vec3 lightColor = glm::vec3(1.0f);
 glm::vec3 lightPos = glm::vec3(-180.0f, 100.0f, -200.0f);
 
 
 
-// variables for player controls
-glm::vec3 playerPos = glm::vec3(0.0f, -9.0f, 0.0f);
-float playerSpeed = 0.1f;
-float playerAngle = 0.0f;
 
 // variables for camera perspective
 //glm::vec3 thrid_person_offset = glm::vec3(0.0f, -10.0f, -10.0f);	// VEZI: constructorul, cameraPosition
@@ -336,6 +341,7 @@ public:
 // aici tinem toate obiectele pe care le randam, simulam, etc
 std::vector<Obiect> vector_obiecte;
 
+
 // obiectul player e tinut la id 0, pozitia 0
 
 // ca sa poti sa cauti in vectoru de obiecte dupa id
@@ -431,7 +437,7 @@ int main()
 // Obiecte
 
 	// daca nu incepe playerul la -20 se buleste absolut tot legat de coliziunile pe Y
-	vector_obiecte.push_back(Obiect(0, glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(10.0f, 10.0f, 10.0f), textures3));
+	vector_obiecte.push_back(Obiect(0, glm::vec3(30.0f, -20.0f, 30.0f), glm::vec3(10.0f, 10.0f, 10.0f), textures3));
 	vector_obiecte.push_back(Obiect(1, glm::vec3(-30.0f, 0.0f, -30.0f), glm::vec3(70.0f, 10.0f, 70.0f), textures));
 	vector_obiecte.push_back(Obiect(2, glm::vec3(20.0f, -30.0f, 20.0f), glm::vec3(10.0f, 70.0f, 30.0f), textures2));
 
@@ -466,7 +472,7 @@ int main()
 	*/
 
 		if (isColliding(vector_obiecte[0], vector_obiecte[1]) == 1) {
-			std::cout << "COLLISION" << std::endl;
+			//std::cout << "COLLISION" << std::endl;
 		}
 		else {
 			//std::cout << "---" << std::endl;
@@ -581,31 +587,188 @@ int main()
 
 
 
+
+
+
+
+
+// collision between any 2 objects
+bool isColliding(Obiect& a, Obiect& b)
+{
+	// check for overlap along each axis	
+	bool xOverlap = (a.getPosition().x < b.getPosition().x + b.getSize().x)
+		&& (b.getPosition().x < a.getPosition().x + a.getSize().x);
+
+	bool yOverlap = (a.getPosition().y < b.getPosition().y + b.getSize().y)
+		&& (b.getPosition().y < a.getPosition().y + a.getSize().y);
+
+	bool zOverlap = (a.getPosition().z < b.getPosition().z + b.getSize().z)
+		&& (b.getPosition().z < a.getPosition().z + a.getSize().z);
+
+	// collision if all three axes overlap
+	return xOverlap && yOverlap && zOverlap;
+}
+
+// anticipate collision for player object's future position and an object
+// uses a specified future_position, not the current one of Obiect& player
+bool anticipateCollision(glm::vec3 future_position, Obiect& player, Obiect& obiect)
+{
+	// check for overlap along each axis	
+	bool xOverlap = (future_position.x < obiect.getPosition().x + obiect.getSize().x)
+		&& (obiect.getPosition().x < future_position.x + player.getSize().x);
+
+	bool yOverlap = (future_position.y < obiect.getPosition().y + obiect.getSize().y)
+		&& (obiect.getPosition().y < future_position.y + player.getSize().y);
+
+	bool zOverlap = (future_position.z < obiect.getPosition().z + obiect.getSize().z)
+		&& (obiect.getPosition().z < future_position.z + player.getSize().z);
+
+	// collision if all three axes overlap
+	return xOverlap && yOverlap && zOverlap;
+}
+
+
+
+// check collisions between player and objects
+bool checkPlayerCollision(std::vector<Obiect>& vector_obiecte)
+{
+	Obiect& player = vector_obiecte.at(0);
+
+	for (int i = 1; i < vector_obiecte.size(); i++)
+	{
+		// return true if it's colliding
+		if (isColliding(player, vector_obiecte.at(i)))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
+
+
 // basic WASD movement and camera rotation
 void processKeyboardInput()
 {
 	float cameraSpeed = 30 * deltaTime;
 
+	// collisions computed based on player model's center, not the functional playerPos aka coltul stanga, jos, front
+	glm::vec3 playerCenterPos = glm::vec3(
+		playerPos.x - (vector_obiecte.at(0).getSize().x / 2.0f),
+		playerPos.y + (vector_obiecte.at(0).getSize().y / 2.0f),
+		playerPos.z - (vector_obiecte.at(0).getSize().z / 2.0f)
+	);
+
+
+
 	//translation -- playerPos TREB SA TINA CONT de getCameraViewDirection() (nu face miscare din laterale, se misca invers)
+	
 	if (window.isPressed(GLFW_KEY_W))
 	{
-		playerPos += glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
-		camera.keyboardMoveFront(cameraSpeed);
+		glm::vec3 future_pos_w = playerCenterPos + glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
+		
+		bool will_collide = 0;
+
+		// check whether it'll collide with any object
+		for (int i = 1; i < vector_obiecte.size(); i++)
+		{
+			// perform movement if no collision will happen between the player (0th object) and any other object
+			if (anticipateCollision(future_pos_w, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
+			{
+				will_collide = 1;
+				std::cout << "will collide on W" << std::endl;
+			}
+		}
+
+		// if not, let it move
+		if (will_collide == 0)
+		{
+			playerPos += glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
+			camera.keyboardMoveFront(cameraSpeed);
+		}
 	}
+
+
+
 	if (window.isPressed(GLFW_KEY_S))
 	{
-		playerPos -= glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
-		camera.keyboardMoveBack(cameraSpeed);
+		glm::vec3 future_pos_s = playerCenterPos - glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
+
+		bool will_collide = 0;
+
+		// check whether it'll collide with any object
+		for (int i = 1; i < vector_obiecte.size(); i++)
+		{
+			// perform movement if no collision will happen between the player (0th object) and any other object
+			if (anticipateCollision(future_pos_s, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
+			{
+				will_collide = 1;
+				std::cout << "will collide on S" << std::endl;
+			}
+		}
+
+		// if not, let it move
+		if (will_collide == 0)
+		{
+			playerPos -= glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
+			camera.keyboardMoveBack(cameraSpeed);
+		}
 	}
+
+
+
 	if (window.isPressed(GLFW_KEY_A))
 	{
-		playerPos -= glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()) * cameraSpeed * playerSpeed * 20.0f;
-		camera.keyboardMoveLeft(cameraSpeed);
+		glm::vec3 future_pos_a = playerCenterPos - glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()) * cameraSpeed * playerSpeed * 20.0f;
+
+		bool will_collide = 0;
+
+		// check whether it'll collide with any object
+		for (int i = 1; i < vector_obiecte.size(); i++)
+		{
+			// perform movement if no collision will happen between the player (0th object) and any other object
+			if (anticipateCollision(future_pos_a, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
+			{
+				will_collide = 1;
+				std::cout << "will collide on A" << std::endl;
+			}
+		}
+
+		// if not, let it move
+		if (will_collide == 0)
+		{
+			playerPos -= glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()) * cameraSpeed * playerSpeed * 20.0f;
+			camera.keyboardMoveLeft(cameraSpeed);
+		}
 	}
+
+
+
 	if (window.isPressed(GLFW_KEY_D))
 	{
-		playerPos += glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()) * cameraSpeed * playerSpeed * 20.0f;
-		camera.keyboardMoveRight(cameraSpeed);
+		glm::vec3 future_pos_d = playerCenterPos + glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()) * cameraSpeed * playerSpeed * 20.0f;
+
+		bool will_collide = 0;
+
+		// check whether it'll collide with any object
+		for (int i = 1; i < vector_obiecte.size(); i++)
+		{
+			// perform movement if no collision will happen between the player (0th object) and any other object
+			if (anticipateCollision(future_pos_d, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
+			{
+				will_collide = 1;
+				std::cout << "will collide on D" << std::endl;
+			}
+		}
+
+		// if not, let it move
+		if (will_collide == 0)
+		{
+			playerPos += glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()) * cameraSpeed * playerSpeed * 20.0f;
+			camera.keyboardMoveRight(cameraSpeed);
+		}
 	}
 /*
 	if (window.isPressed(GLFW_KEY_R))
@@ -617,6 +780,7 @@ void processKeyboardInput()
 		camera.keyboardMoveDown(cameraSpeed);
 	}
 */
+
 
 
 	// enable jumping movement when pressing space
@@ -696,42 +860,4 @@ void processPlayerMovement()
 	}
 
 
-}
-
-
-
-// collision between any 2 objects
-bool isColliding(Obiect& a, Obiect& b)
-{
-	// check for overlap along each axis	
-	bool xOverlap =	(a.getPosition().x < b.getPosition().x + b.getSize().x)
-				 && (b.getPosition().x < a.getPosition().x + a.getSize().x);
-
-	bool yOverlap = (a.getPosition().y < b.getPosition().y + b.getSize().y)
-				 && (b.getPosition().y < a.getPosition().y + a.getSize().y);
-
-	bool zOverlap = (a.getPosition().z < b.getPosition().z + b.getSize().z)
-				 && (b.getPosition().z < a.getPosition().z + a.getSize().z);
-
-	// collision if all three axes overlap
-	return xOverlap && yOverlap && zOverlap;
-}
-
-
-
-// check collisions between player and objects
-bool checkPlayerCollision(std::vector<Obiect>& vector_obiecte)
-{
-	Obiect& player = vector_obiecte.at(0);
-
-	for (int i = 1; i < vector_obiecte.size(); i++)
-	{
-		// return true if it's colliding
-		if (isColliding(player, vector_obiecte.at(i)))
-		{
-			return true;
-		}
-	}
-
-	return false;
 }
