@@ -56,7 +56,8 @@ float firstJumpFrame = 0.0f;
 float shortjumpDuration = 1.0f;		// seconds
 float longjumpDuration = 2.7f;		// seconds
 float jumpDuration = shortjumpDuration;
-float jumpHeight = 0.2f;
+float jumpHeight = 5.0f;
+float initialJumpHeight = 0.0f;
 
 float razaBiciului = 0.5f;
 float swingDuration = 1.0f; // seconds
@@ -437,7 +438,7 @@ int main()
 // Obiecte
 
 	// daca nu incepe playerul la -20 se buleste absolut tot legat de coliziunile pe Y
-	// daca nu incepe de la 0, -20, 0, iarasi idk de ce se strica :)
+	// daca nu incepe de la x=0 si z=0, se strica de la offsetul din clasa de camera (dar nu stau sa-l automatizez)
 	vector_obiecte.push_back(Obiect(0, glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(3.0f, 10.0f, 3.0f), textures3));
 	vector_obiecte.push_back(Obiect(1, glm::vec3(-30.0f, 0.0f, -30.0f), glm::vec3(70.0f, 10.0f, 70.0f), textures));
 	vector_obiecte.push_back(Obiect(2, glm::vec3(20.0f, -30.0f, 20.0f), glm::vec3(10.0f, 70.0f, 30.0f), textures2));
@@ -479,13 +480,6 @@ int main()
 			std::cout << "Pressing mouse button" << std::endl;
 		}
 	*/
-
-		if (isColliding(vector_obiecte[0], vector_obiecte[1]) == 1) {
-			//std::cout << "COLLISION" << std::endl;
-		}
-		else {
-			//std::cout << "---" << std::endl;
-		}
 
 
 
@@ -699,8 +693,6 @@ void processKeyboardInput()
 		}
 	}
 
-
-
 	if (window.isPressed(GLFW_KEY_S))
 	{
 		glm::vec3 future_pos_s = playerCenterPos - glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
@@ -726,8 +718,6 @@ void processKeyboardInput()
 		}
 	}
 
-
-
 	if (window.isPressed(GLFW_KEY_A))
 	{
 		glm::vec3 future_pos_a = playerCenterPos - glm::cross(camera.getCameraViewDirection(), camera.getCameraUp()) * cameraSpeed * playerSpeed * 20.0f;
@@ -752,8 +742,6 @@ void processKeyboardInput()
 			camera.keyboardMoveLeft(cameraSpeed);
 		}
 	}
-
-
 
 	if (window.isPressed(GLFW_KEY_D))
 	{
@@ -797,6 +785,7 @@ void processKeyboardInput()
 	{
 		jumping = 1;
 		firstJumpFrame = glfwGetTime();
+		initialJumpHeight = playerPos.y;
 	}
 
 
@@ -831,11 +820,21 @@ void processKeyboardInput()
 	vector_obiecte.at(0).setPosition(playerPos);
 }
 
+
+
 // jumping, falling
 void processPlayerMovement()
 {
-///*
+	// collisions computed based on player model's center, not the functional playerPos aka coltul stanga, jos, front
+	glm::vec3 playerCenterPos = glm::vec3(
+		playerPos.x - (vector_obiecte.at(0).getSize().x / 2.0f),
+		playerPos.y + (vector_obiecte.at(0).getSize().y / 2.0f),
+		playerPos.z - (vector_obiecte.at(0).getSize().z / 2.0f)
+	);
+
+
 	// jumping movement
+	// cosine animation from 1 to 0, and w/o landing again from 0 to -1
 	if (jumping == 1) {
 
 		//if (swinging == 1)
@@ -843,30 +842,64 @@ void processPlayerMovement()
 
 		float currentJumpFrame = glfwGetTime();
 		deltaJumpTime = currentJumpFrame - firstJumpFrame;
-		float normalizedTime = (deltaJumpTime / jumpDuration * 2) * 3.1456f;
+		float normalizedTime = (deltaJumpTime / jumpDuration) * 3.1456f;
 
-		const float radius = jumpHeight;
-		float cosinus = cos(normalizedTime);		// values (-1, 1)
-		playerPos.y = (-1.0f + cosinus) * -radius;	// values (0, jumpHeight)
+		const float radius =  jumpHeight;
+		float cosinus = cos(normalizedTime);							// values (1, 0)
+		playerPos.y = initialJumpHeight + (-1.0f + cosinus) * -radius;	// values (0, jumpHeight)
+
+		// adjust camera
+		camera.verticalMovement(normalizedTime * 0.005f);
+		
+		// adjust camera
+		//camera.setCameraPosition(glm::vec3(0.0f, 1.0f, 0.0f) * 30.0f);
+		//cameraPosition += glm::vec3(0.0f, 1.0f, 0.0f) * cameraSpeed * speedMultiplier;
+		//camera.setCameraPosition(
+		//	glm::vec3(
+		//		camera.getCameraPosition().x,
+		//		camera.getCameraPosition().y + (-1.0f + cosinus) * -radius,
+		//		camera.getCameraPosition().z
+		//	)
+		//);
 
 		// stop jumping animation when duration expires
 		if (deltaJumpTime > jumpDuration)
 		{
 			jumping = 0;
-			if (swinging == 1)
-				swinging = 0;
+			//if (swinging == 1)
+			//	swinging = 0;
 			jumpDuration = shortjumpDuration;
 
 		}
 	}
-//*/
+
 
 	// falling (negative gravity because it's descending)
-	if (collisionCheckREPLACEME == 0)
+	// like player controls, anticipate whether the fall will be broken by an object below the player.
+	// if not, apply gravity
+	if (jumping == 0)
 	{
-		playerPos.y += -gravity;
-		camera.verticalMovement(-gravity * 0.5f);
+		glm::vec3 future_pos_y = playerCenterPos - glm::vec3(0.0f, gravity, 0.0f);
+
+		bool will_collide = 0;
+
+		// check whether it'll collide with any object
+		for (int i = 1; i < vector_obiecte.size(); i++)
+		{
+			if (anticipateCollision(future_pos_y, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
+			{
+				will_collide = 1;
+				std::cout << "not falling" << std::endl;
+			}
+		}
+
+		// if not, let it fall
+		if (will_collide == 0)
+		{
+			playerPos.y += -gravity;
+			camera.verticalMovement(-gravity * 0.5f);
+
+			std::cout << "FALLING" << std::endl;
+		}
 	}
-
-
 }
