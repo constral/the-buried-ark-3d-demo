@@ -45,6 +45,7 @@ float cameraControlMultiplier = 1.5f;
 // variabile din 2D
 
 bool jumping = 0;
+bool standing = 0;
 bool whipping = 0;	// bici in mana/lansat
 bool swinging = 0;	// barna
 bool dead = 0;
@@ -58,6 +59,7 @@ float longjumpDuration = 2.7f;		// seconds
 float jumpDuration = shortjumpDuration;
 float jumpHeight = 5.0f;
 float initialJumpHeight = 0.0f;
+float initialCameraPosHeight = 0.0f;
 
 float razaBiciului = 0.5f;
 float swingDuration = 1.0f; // seconds
@@ -660,7 +662,7 @@ void processKeyboardInput()
 	// collisions computed based on player model's center, not the functional playerPos aka coltul stanga, jos, front
 	glm::vec3 playerCenterPos = glm::vec3(
 		playerPos.x - (vector_obiecte.at(0).getSize().x / 2.0f),
-		playerPos.y + (vector_obiecte.at(0).getSize().y / 2.0f),
+		playerPos.y,
 		playerPos.z - (vector_obiecte.at(0).getSize().z / 2.0f)
 	);
 
@@ -780,12 +782,13 @@ void processKeyboardInput()
 
 
 
-	// enable jumping movement when pressing space
-	if (window.isPressed(GLFW_KEY_SPACE) && jumping == 0 /* && (checkCollision() || swinging == 1)*/)
+	// enable jumping movement when pressing space AND when standing on something
+	if (window.isPressed(GLFW_KEY_SPACE) && jumping == 0 && standing == 1 /* && (checkCollision() || swinging == 1)*/)
 	{
 		jumping = 1;
 		firstJumpFrame = glfwGetTime();
 		initialJumpHeight = playerPos.y;
+		initialCameraPosHeight = camera.getCameraPosition().y;
 	}
 
 
@@ -825,10 +828,10 @@ void processKeyboardInput()
 // jumping, falling
 void processPlayerMovement()
 {
-	// collisions computed based on player model's center, not the functional playerPos aka coltul stanga, jos, front
+	// collisions computed based on player model's center, special treatment for height
 	glm::vec3 playerCenterPos = glm::vec3(
 		playerPos.x - (vector_obiecte.at(0).getSize().x / 2.0f),
-		playerPos.y + (vector_obiecte.at(0).getSize().y / 2.0f),
+		playerPos.y,
 		playerPos.z - (vector_obiecte.at(0).getSize().z / 2.0f)
 	);
 
@@ -848,19 +851,16 @@ void processPlayerMovement()
 		float cosinus = cos(normalizedTime);							// values (1, 0)
 		playerPos.y = initialJumpHeight + (-1.0f + cosinus) * -radius;	// values (0, jumpHeight)
 
+
 		// adjust camera
-		camera.verticalMovement(normalizedTime * 0.005f);
-		
-		// adjust camera
-		//camera.setCameraPosition(glm::vec3(0.0f, 1.0f, 0.0f) * 30.0f);
-		//cameraPosition += glm::vec3(0.0f, 1.0f, 0.0f) * cameraSpeed * speedMultiplier;
-		//camera.setCameraPosition(
-		//	glm::vec3(
-		//		camera.getCameraPosition().x,
-		//		camera.getCameraPosition().y + (-1.0f + cosinus) * -radius,
-		//		camera.getCameraPosition().z
-		//	)
-		//);
+		// should increase accounting for pivot, not same addition as playerPos.y
+		camera.setCameraPosition(
+			glm::vec3(
+				camera.getCameraPosition().x,
+				initialCameraPosHeight + (-1.0f + cosinus) * -radius,
+				camera.getCameraPosition().z
+			)
+		);
 
 		// stop jumping animation when duration expires
 		if (deltaJumpTime > jumpDuration)
@@ -896,10 +896,13 @@ void processPlayerMovement()
 		// if not, let it fall
 		if (will_collide == 0)
 		{
+			standing = 0;
 			playerPos.y += -gravity;
 			camera.verticalMovement(-gravity * 0.5f);
 
 			std::cout << "FALLING" << std::endl;
 		}
+		else
+			standing = 1;
 	}
 }
