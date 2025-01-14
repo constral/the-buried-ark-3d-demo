@@ -1,5 +1,12 @@
 C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Camera\camera.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\camera.obj
 C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Graphics\window.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\window.obj
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\imgui\backends\imgui_impl_glfw.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\imgui_impl_glfw.obj
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\imgui\backends\imgui_impl_opengl3.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\imgui_impl_opengl3.obj
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\imgui\imgui.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\imgui.obj
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\imgui\imgui_demo.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\imgui_demo.obj
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\imgui\imgui_draw.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\imgui_draw.obj
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\imgui\imgui_tables.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\imgui_tables.obj
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\imgui\imgui_widgets.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\imgui_widgets.obj
 C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\main.obj
 C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Model Loading\meshLoaderObj.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\meshLoaderObj.obj
 C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Model Loading\mesh.cpp;C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\Debug\mesh.obj

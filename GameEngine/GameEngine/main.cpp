@@ -6,9 +6,15 @@
 #include "Model Loading\meshLoaderObj.h"
 #include "stb_image.h"
 #include <glm.hpp>
+#include "imgui/imgui.h"
+#include "imgui/backends/imgui_impl_glfw.h"
+#include "imgui/backends/imgui_impl_opengl3.h"
+#include <string>
 
 
-// Vertex shader source code
+
+
+// vertex shader for skybox
 const char* skyboxVertexShaderSource = R"GLSL(
 #version 330 core
 layout (location = 0) in vec3 aPos;
@@ -22,7 +28,7 @@ void main() {
 }
 )GLSL";
 
-// Fragment shader source code
+// fragment shader for skybox
 const char* skyboxFragmentShaderSource = R"GLSL(
 #version 330 core
 in vec3 TexCoords;
@@ -33,7 +39,7 @@ void main() {
 }
 )GLSL";
 
-// Skybox vertices
+// skybox vertices
 float skyboxVertices[] = {
 	// Positions for the 6 faces of the cube
 	-1.0f,  1.0f, -1.0f,
@@ -190,9 +196,10 @@ float cameraControlMultiplier = 1.5f;
 
 bool jumping = 0;
 bool standing = 0;
-bool whipping = 0;	// bici in mana/lansat
-bool swinging = 0;	// barna
-bool dead = 0;
+int current_task = 0;
+
+std::string task1desc = "task 1: navigate the labyrinth";
+std::string task2desc = "task 2: jump on the pillars";
 
 
 //jump stuff
@@ -221,12 +228,12 @@ bool collisionCheckREPLACEME = 1;
 class Obiect
 {
 
-// HITBOX SI CHESTII GENERALE
+	// HITBOX SI CHESTII GENERALE
 
-	// hitboxul o sa fie un mesh facut din rectangle-uri si poti sa il lasi asa daca nu vrei un model anume (e.g. pentru pereti)
-	// daca vrei un model anume, mesh-ul hitboxului nu o sa fie randat, o sa fie randat numai meshul din argument
+		// hitboxul o sa fie un mesh facut din rectangle-uri si poti sa il lasi asa daca nu vrei un model anume (e.g. pentru pereti)
+		// daca vrei un model anume, mesh-ul hitboxului nu o sa fie randat, o sa fie randat numai meshul din argument
 
-	// nume ID unic
+		// nume ID unic
 	int Obiect_id;
 	// pozitia coltului din: stanga, jos, front
 	glm::vec3 position;
@@ -235,7 +242,7 @@ class Obiect
 
 	std::vector<Vertex> vertices;
 
-// MESH -- va primi fie valoarea marginilor hitboxului, fie mesh-ul specific din argument, i.f.s.d. constructor
+	// MESH -- va primi fie valoarea marginilor hitboxului, fie mesh-ul specific din argument, i.f.s.d. constructor
 	Mesh mesh;
 	// or sa trebuiasca si offseturi si rotatii si scalari pt asta... doar inregistreaza-le in niste variabile,
 	// le ajustezi in constructor, si le transmiti sa fie facute in rendering loop
@@ -244,11 +251,11 @@ class Obiect
 	// Rotation angles in radians
 	glm::vec3 rotation;
 
-// TEXTURA
+	// TEXTURA
 	std::vector<Texture> textura;
 
-// SHADERE (optional?)
-	//
+	// SHADERE (optional?)
+		//
 
 
 
@@ -261,181 +268,6 @@ public:
 		position = auxposition;
 		size = auxsize;
 
-
-/*
-		// "compile" all vertices and indices of defined objects:
-			// retrieve the x and y coords of the top left corner
-		float tl_x = position.x;
-		float tl_y = position.y;
-
-		// compute the other 3 corners using the size and
-		// insert them into the vertices array in the following order: TR, BR, BL, TL
-		float width = size.x;
-		float height = size.y;
-
-
-
-		// BR
-		vertices[0] = tl_x + width;  // x
-		vertices[1] = tl_y;          // y
-		vertices[2] = 0.0f;          // z
-
-		// TR
-		vertices[3] = tl_x + width;  // x
-		vertices[4] = tl_y + height; // y
-		vertices[5] = 0.0f;          // z
-
-		// TL
-		vertices[6] = tl_x;         // x
-		vertices[7] = tl_y + height;// y
-		vertices[8] = 0.0f;         // z
-
-		// BL
-		vertices[9] = tl_x;         // x
-		vertices[10] = tl_y;         // y
-		vertices[11] = 0.0f;         // z
-
-		// Define indices for two triangles that form the rectangle
-		indices[0] = 0; // BR // 0
-		indices[1] = 3; // BL // 3
-		indices[2] = 2; // TL // 2
-
-		indices[3] = 1; // TR
-		indices[4] = 0; // BR
-		indices[5] = 2; // TL
-*/
-
-
-		float x = position.x;
-		float y = position.y;
-		float z = position.z;
-
-		float w = size.x;
-		float h = size.y;
-		float d = size.z;
-
-		if(Obiect_id == 0)
-			std::cout << "player y: " << playerPos.y << " | player y + h: " << playerPos.y + h << std::endl;
-
-		std::cout << Obiect_id << ": " << std::endl;
-		std::cout << y << std::endl;
-		std::cout << y + h << std::endl;
-		std::cout << std::endl;
-
-		std::vector<Vertex> vertices = {
-
-			// Front face
-			Vertex(x,       y,       z + d,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f),
-			Vertex(x + w,   y,       z + d,   0.0f, 0.0f, 1.0f,   1.0f, 0.0f),
-			Vertex(x + w,   y + h,   z + d,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f),
-			Vertex(x,       y + h,   z + d,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f),
-
-			// Back face
-			Vertex(x,       y,       z,      0.0f, 0.0f, -1.0f,  1.0f, 0.0f),
-			Vertex(x + w,   y,       z,      0.0f, 0.0f, -1.0f,  0.0f, 0.0f),
-			Vertex(x + w,   y + h,   z,      0.0f, 0.0f, -1.0f,  0.0f, 1.0f),
-			Vertex(x,       y + h,   z,      0.0f, 0.0f, -1.0f,  1.0f, 1.0f),
-
-			// Left face
-			Vertex(x,       y,       z,      -1.0f, 0.0f, 0.0f,  0.0f, 0.0f),
-			Vertex(x,       y,       z + d,  -1.0f, 0.0f, 0.0f,  1.0f, 0.0f),
-			Vertex(x,       y + h,   z + d,  -1.0f, 0.0f, 0.0f,  1.0f, 1.0f),
-			Vertex(x,       y + h,   z,      -1.0f, 0.0f, 0.0f,  0.0f, 1.0f),
-
-			// Right face
-			Vertex(x + w,   y,       z,      1.0f, 0.0f, 0.0f,   0.0f, 0.0f),
-			Vertex(x + w,   y,       z + d,  1.0f, 0.0f, 0.0f,   1.0f, 0.0f),
-			Vertex(x + w,   y + h,   z + d,  1.0f, 0.0f, 0.0f,   1.0f, 1.0f),
-			Vertex(x + w,   y + h,   z,      1.0f, 0.0f, 0.0f,   0.0f, 1.0f),
-
-			// Top face
-			Vertex(x,       y + h,   z,      0.0f, 1.0f, 0.0f,   0.0f, 0.0f),
-			Vertex(x + w,   y + h,   z,      0.0f, 1.0f, 0.0f,   1.0f, 0.0f),
-			Vertex(x + w,   y + h,   z + d,  0.0f, 1.0f, 0.0f,   1.0f, 1.0f),
-			Vertex(x,       y + h,   z + d,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f),
-
-			// Bottom face
-			Vertex(x,       y,       z,      0.0f, -1.0f, 0.0f,  0.0f, 0.0f),
-			Vertex(x + w,   y,       z,      0.0f, -1.0f, 0.0f,  1.0f, 0.0f),
-			Vertex(x + w,   y,       z + d,  0.0f, -1.0f, 0.0f,  1.0f, 1.0f),
-			Vertex(x,       y,       z + d,  0.0f, -1.0f, 0.0f,  0.0f, 1.0f)
-		};
-
-		std::vector<int> indices = {
-
-			// Front face
-			0, 1, 2, 2, 3, 0,
-			// Back face
-			4, 5, 6, 6, 7, 4,
-			// Left face
-			8, 9, 10, 10, 11, 8,
-			// Right face
-			12, 13, 14, 14, 15, 12,
-			// Top face
-			16, 17, 18, 18, 19, 16,
-			// Bottom face
-			20, 21, 22, 22, 23, 20
-
-		};
-
-/*
-		std::vector<int> indices = {
-			// front
-			0, 1, 2,
-			2, 3, 0,
-			// right
-			1, 5, 6,
-			6, 2, 1,
-			// back
-			7, 6, 5,
-			5, 4, 7,
-			// left
-			4, 0, 3,
-			3, 7, 4,
-			// bottom
-			4, 5, 1,
-			1, 0, 4,
-			// top
-			3, 2, 6,
-			6, 7, 3
-		};
-*/
-
-		// Create the Mesh object for the cube
-		mesh = Mesh(vertices, indices, textura);
-
-/*
-		// hitbox loading
-		vert.push_back(Vertex());
-		vert[0].pos = glm::vec3(10.5f, 10.5f, 0.0f);
-		vert[0].textureCoords = glm::vec2(1.0f, 1.0f);
-
-		vert.push_back(Vertex());
-		vert[1].pos = glm::vec3(10.5f, -10.5f, 0.0f);
-		vert[1].textureCoords = glm::vec2(1.0f, 0.0f);
-
-		vert.push_back(Vertex());
-		vert[2].pos = glm::vec3(-10.5f, -10.5f, 0.0f);
-		vert[2].textureCoords = glm::vec2(0.0f, 0.0f);
-
-		vert.push_back(Vertex());
-		vert[3].pos = glm::vec3(-10.5f, 10.5f, 0.0f);
-		vert[3].textureCoords = glm::vec2(0.0f, 1.0f);
-
-		vert[0].normals = glm::normalize(glm::cross(vert[1].pos - vert[0].pos, vert[3].pos - vert[0].pos));
-		vert[1].normals = glm::normalize(glm::cross(vert[2].pos - vert[1].pos, vert[0].pos - vert[1].pos));
-		vert[2].normals = glm::normalize(glm::cross(vert[3].pos - vert[2].pos, vert[1].pos - vert[2].pos));
-		vert[3].normals = glm::normalize(glm::cross(vert[0].pos - vert[3].pos, vert[2].pos - vert[3].pos));
-
-		Mesh mesh(vert, ind, textura);*/
-	}
-
-	// pentru mesh in argument si hitbox transparent
-	Obiect(int id, glm::vec3 auxposition, glm::vec3 auxsize, std::vector<Texture> textura, Mesh mesh)
-	{
-		Obiect_id = id;
-		position = auxposition;
-		size = auxsize;
 
 		/*
 				// "compile" all vertices and indices of defined objects:
@@ -479,6 +311,7 @@ public:
 				indices[4] = 0; // BR
 				indices[5] = 2; // TL
 		*/
+
 
 		float x = position.x;
 		float y = position.y;
@@ -603,7 +436,100 @@ public:
 
 				Mesh mesh(vert, ind, textura);*/
 	}
-	
+
+	// pentru mesh in argument si hitbox transparent
+	Obiect(int id, glm::vec3 auxposition, glm::vec3 auxsize, Mesh auxmesh)
+	{
+		Obiect_id = id;
+		position = auxposition;
+		size = auxsize;
+		mesh = auxmesh;
+
+		/*
+				// "compile" all vertices and indices of defined objects:
+					// retrieve the x and y coords of the top left corner
+				float tl_x = position.x;
+				float tl_y = position.y;
+
+				// compute the other 3 corners using the size and
+				// insert them into the vertices array in the following order: TR, BR, BL, TL
+				float width = size.x;
+				float height = size.y;
+
+
+
+				// BR
+				vertices[0] = tl_x + width;  // x
+				vertices[1] = tl_y;          // y
+				vertices[2] = 0.0f;          // z
+
+				// TR
+				vertices[3] = tl_x + width;  // x
+				vertices[4] = tl_y + height; // y
+				vertices[5] = 0.0f;          // z
+
+				// TL
+				vertices[6] = tl_x;         // x
+				vertices[7] = tl_y + height;// y
+				vertices[8] = 0.0f;         // z
+
+				// BL
+				vertices[9] = tl_x;         // x
+				vertices[10] = tl_y;         // y
+				vertices[11] = 0.0f;         // z
+
+				// Define indices for two triangles that form the rectangle
+				indices[0] = 0; // BR // 0
+				indices[1] = 3; // BL // 3
+				indices[2] = 2; // TL // 2
+
+				indices[3] = 1; // TR
+				indices[4] = 0; // BR
+				indices[5] = 2; // TL
+		*/
+
+		float x = position.x;
+		float y = position.y;
+		float z = position.z;
+
+		float w = size.x;
+		float h = size.y;
+		float d = size.z;
+
+		if (Obiect_id == 0)
+			std::cout << "player y: " << playerPos.y << " | player y + h: " << playerPos.y + h << std::endl;
+
+		std::cout << Obiect_id << ": " << std::endl;
+		std::cout << y << std::endl;
+		std::cout << y + h << std::endl;
+		std::cout << std::endl;
+
+		/*
+				// hitbox loading
+				vert.push_back(Vertex());
+				vert[0].pos = glm::vec3(10.5f, 10.5f, 0.0f);
+				vert[0].textureCoords = glm::vec2(1.0f, 1.0f);
+
+				vert.push_back(Vertex());
+				vert[1].pos = glm::vec3(10.5f, -10.5f, 0.0f);
+				vert[1].textureCoords = glm::vec2(1.0f, 0.0f);
+
+				vert.push_back(Vertex());
+				vert[2].pos = glm::vec3(-10.5f, -10.5f, 0.0f);
+				vert[2].textureCoords = glm::vec2(0.0f, 0.0f);
+
+				vert.push_back(Vertex());
+				vert[3].pos = glm::vec3(-10.5f, 10.5f, 0.0f);
+				vert[3].textureCoords = glm::vec2(0.0f, 1.0f);
+
+				vert[0].normals = glm::normalize(glm::cross(vert[1].pos - vert[0].pos, vert[3].pos - vert[0].pos));
+				vert[1].normals = glm::normalize(glm::cross(vert[2].pos - vert[1].pos, vert[0].pos - vert[1].pos));
+				vert[2].normals = glm::normalize(glm::cross(vert[3].pos - vert[2].pos, vert[1].pos - vert[2].pos));
+				vert[3].normals = glm::normalize(glm::cross(vert[0].pos - vert[3].pos, vert[2].pos - vert[3].pos));
+
+				Mesh mesh(vert, ind, textura);*/
+	}
+
 
 
 
@@ -658,23 +584,40 @@ public:
 std::vector<Obiect> vector_obiecte;
 
 
-// obiectul player e tinut la id 0, pozitia 0
-
-// ca sa poti sa cauti in vectoru de obiecte dupa id
-Obiect* getObiectByID(int id)
+// collision between any 2 objects
+bool isColliding(Obiect& a, Obiect& b)
 {
-	for (int i = 0; i < vector_obiecte.size(); i++)
-	{
-		if (vector_obiecte.at(i).getID() == id)
-		{
-			return &(vector_obiecte.at(i));
-		}
-	}
+	// check for overlap along each axis	
+	bool xOverlap = (a.getPosition().x < b.getPosition().x + b.getSize().x)
+		&& (b.getPosition().x < a.getPosition().x + a.getSize().x);
+
+	bool yOverlap = (a.getPosition().y < b.getPosition().y + b.getSize().y)
+		&& (b.getPosition().y < a.getPosition().y + a.getSize().y);
+
+	bool zOverlap = (a.getPosition().z < b.getPosition().z + b.getSize().z)
+		&& (b.getPosition().z < a.getPosition().z + a.getSize().z);
+
+	// collision if all three axes overlap
+	return xOverlap && yOverlap && zOverlap;
 }
-// DE STERS? ca poti sa le iei direct din vector
 
+// anticipate collision for player object's future position and an object
+// uses a specified future_position, not the current one of Obiect& player
+bool anticipateCollision(glm::vec3 future_position, Obiect& player, Obiect& obiect)
+{
+	// check for overlap along each axis	
+	bool xOverlap = (future_position.x < obiect.getPosition().x + obiect.getSize().x)
+		&& (obiect.getPosition().x < future_position.x + player.getSize().x);
 
+	bool yOverlap = (future_position.y < obiect.getPosition().y + obiect.getSize().y)
+		&& (obiect.getPosition().y < future_position.y + player.getSize().y);
 
+	bool zOverlap = (future_position.z < obiect.getPosition().z + obiect.getSize().z)
+		&& (obiect.getPosition().z < future_position.z + player.getSize().z);
+
+	// collision if all three axes overlap
+	return xOverlap && yOverlap && zOverlap;
+}
 
 
 
@@ -712,10 +655,10 @@ int main()
 	Shader sunShader("Shaders/sun_vertex_shader.glsl", "Shaders/sun_fragment_shader.glsl");
 
 
-// Textures
+	// Textures
 
-	GLuint tex = loadBMP("Resources/Textures/wood.bmp");
-	GLuint tex2 = loadBMP("Resources/Textures/rock.bmp");
+	GLuint tex = loadBMP("Resources/Textures/rock.bmp");
+	GLuint tex2 = loadBMP("Resources/Textures/wood.bmp");
 	GLuint tex3 = loadBMP("Resources/Textures/orange.bmp");
 
 	std::vector<Texture> textures;
@@ -735,7 +678,7 @@ int main()
 
 
 
-// Meshes
+	// Meshes
 
 	Mesh sun = loader.loadObj("Resources/Models/sphere.obj");
 	Mesh suz = loader.loadObj("Resources/Models/suzanne.obj", textures);
@@ -754,13 +697,15 @@ int main()
 		// daca nu incepe de la x=0 si z=0, se strica de la offsetul din clasa de camera (dar nu stau sa-l automatizez)
 	vector_obiecte.push_back(Obiect(0, glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(2.0f, 5.0f, 2.0f), textures3));
 	vector_obiecte.push_back(Obiect(1, glm::vec3(-50.0f, 0.0f, -50.0f), glm::vec3(200.0f, 10.0f, 200.0f), textures));
+	vector_obiecte.push_back(Obiect(2, glm::vec3(150.0f, 0.0f, -50.0f), glm::vec3(200.0f, 10.0f, 200.0f), textures));
+	//vector_obiecte.push_back(Obiect(2, glm::vec3(-50.0f, 0.0f, -50.0f), glm::vec3(200.0f, 10.0f, 200.0f), suz));
 
 
 	// labirint
-	float predef_height = 1.0f;
+	float predef_height = 8.0f;
 	float predef_height_length = 10.0f;
 	{
-		vector_obiecte.push_back(Obiect(10, glm::vec3(1.1372855, predef_height, 0.42250618), glm::vec3(52.440838, predef_height_length, 4.5908861), textures2));
+		//vector_obiecte.push_back(Obiect(10, glm::vec3(1.1372855, predef_height, 0.42250618), glm::vec3(52.440838, predef_height_length, 4.5908861), textures2));
 		vector_obiecte.push_back(Obiect(11, glm::vec3(87.200981, predef_height, 11.013816), glm::vec3(42.580688, predef_height_length, 4.61971), textures2));
 		vector_obiecte.push_back(Obiect(12, glm::vec3(96.55674, predef_height, 0.82457626), glm::vec3(42.580688, predef_height_length, 4.61971), textures2));
 		vector_obiecte.push_back(Obiect(13, glm::vec3(68.274307, predef_height, 29.346987), glm::vec3(14.096099, predef_height_length, 4.7329602), textures2));
@@ -774,10 +719,9 @@ int main()
 		vector_obiecte.push_back(Obiect(21, glm::vec3(48.947918, predef_height, 5.0133924), glm::vec3(4.6302085, predef_height_length, 28.631697), textures2));
 		vector_obiecte.push_back(Obiect(22, glm::vec3(77.423111, predef_height, 38.952435), glm::vec3(4.6302085, predef_height_length, 28.631697), textures2));
 		vector_obiecte.push_back(Obiect(23, glm::vec3(23.772322, predef_height, 19.659969), glm::vec3(38.175598, predef_height_length, 4.5357141), textures2));
-		vector_obiecte.push_back(Obiect(24, glm::vec3(5.8586307, predef_height, 24.224565), glm::vec3(38.175598, predef_height_length, 4.4412203), textures2));
 		vector_obiecte.push_back(Obiect(25, glm::vec3(30.078815, predef_height, 39.088078), glm::vec3(38.175598, predef_height_length, 4.4412203), textures2));
 		vector_obiecte.push_back(Obiect(26, glm::vec3(40.222961, predef_height, 77.017509), glm::vec3(38.175598, predef_height_length, 4.4412203), textures2));
-		vector_obiecte.push_back(Obiect(27, glm::vec3(1.1372855, predef_height, 5.0133924), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
+		//vector_obiecte.push_back(Obiect(27, glm::vec3(1.1372855, predef_height, 5.0133924), glm::vec3(4.8158398, predef_height_length, 27.813984), textures2));
 		vector_obiecte.push_back(Obiect(28, glm::vec3(135.11575, predef_height, 48.431767), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
 		vector_obiecte.push_back(Obiect(29, glm::vec3(135.07138, predef_height, 0.94643623), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
 		vector_obiecte.push_back(Obiect(30, glm::vec3(0.69528389, predef_height, 52.724197), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
@@ -797,7 +741,6 @@ int main()
 		vector_obiecte.push_back(Obiect(44, glm::vec3(86.899773, predef_height, 24.259315), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
 		vector_obiecte.push_back(Obiect(45, glm::vec3(96.581886, predef_height, 38.646191), glm::vec3(4.6978688, predef_height_length, 22.897234), textures2));
 		vector_obiecte.push_back(Obiect(46, glm::vec3(115.78501, predef_height, 14.060096), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
-		vector_obiecte.push_back(Obiect(47, glm::vec3(476.15121, predef_height, 33.124878), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
 		vector_obiecte.push_back(Obiect(48, glm::vec3(116.00485, predef_height, 38.996563), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
 		vector_obiecte.push_back(Obiect(49, glm::vec3(48.977024, predef_height, 52.400517), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
 		vector_obiecte.push_back(Obiect(50, glm::vec3(5.953125, predef_height, 48.386162), glm::vec3(19.087799, predef_height_length, 4.4412169), textures2));
@@ -810,7 +753,6 @@ int main()
 		vector_obiecte.push_back(Obiect(57, glm::vec3(116.15706, predef_height, 38.605915), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
 		vector_obiecte.push_back(Obiect(58, glm::vec3(96.775284, predef_height, 29.424734), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
 		vector_obiecte.push_back(Obiect(59, glm::vec3(96.666504, predef_height, 57.865437), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
-		vector_obiecte.push_back(Obiect(60, glm::vec3(160.89089, predef_height, 57.561897), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
 		vector_obiecte.push_back(Obiect(61, glm::vec3(116.31538, predef_height, 86.402695), glm::vec3(13.256493, predef_height_length, 4.4898448), textures2));
 		vector_obiecte.push_back(Obiect(62, glm::vec3(126.08751, predef_height, 29.208355), glm::vec3(9.0231743, predef_height_length, 4.5328393), textures2));
 		vector_obiecte.push_back(Obiect(63, glm::vec3(87.388481, predef_height, 48.451759), glm::vec3(9.0231743, predef_height_length, 4.5328393), textures2));
@@ -821,10 +763,17 @@ int main()
 	}
 
 	// stalpi de parkour
-	vector_obiecte.push_back(Obiect(68, glm::vec3(-7.1494594, 10.0f, -6.4780231), glm::vec3(5.278573, 7.0f, 4.7440343), textures2));
-	vector_obiecte.push_back(Obiect(69, glm::vec3(-17.305702, 10.0f, -11.489327), glm::vec3(5.0781207, 12.0f, 4.4767647), textures2));
-	vector_obiecte.push_back(Obiect(70, glm::vec3(-13.102751, 10.0f, -23.656635), glm::vec3(4.7977629, 17.0f, 4.597311), textures2));
-	vector_obiecte.push_back(Obiect(71, glm::vec3(-13.3408689, 10.0f, -36.34539), glm::vec3(25.79151, 22.0f, 5.1449385), textures2));
+	vector_obiecte.push_back(Obiect(68, glm::vec3(157.1494594, 10.0f, 76.4780231), glm::vec3(5.278573, 7.0f, 4.7440343), textures2));
+	vector_obiecte.push_back(Obiect(69, glm::vec3(167.305702, 10.0f, 81.489327), glm::vec3(5.0781207, 12.0f, 4.4767647), textures2));
+	vector_obiecte.push_back(Obiect(70, glm::vec3(163.102751, 10.0f, 93.656635), glm::vec3(4.7977629, 17.0f, 4.597311), textures2));
+	vector_obiecte.push_back(Obiect(71, glm::vec3(163.3408689, 10.0f, 106.34539), glm::vec3(25.79151, 22.0f, 5.1449385), textures2));
+
+
+
+
+
+
+
 
 
 
@@ -847,18 +796,39 @@ int main()
 
 	// Load cubemap textures
 	std::vector<std::string> faces = {
-		"Resources/Skybox/clouds1_up.bmp",
 		"Resources/Skybox/clouds1_west.bmp",
 		"Resources/Skybox/clouds1_east.bmp",
+		"Resources/Skybox/clouds1_up.bmp",
+		"Resources/Skybox/clouds1_down.bmp",
 		"Resources/Skybox/clouds1_south.bmp",
-		"Resources/Skybox/clouds1_north.bmp",
-		"Resources/Skybox/clouds1_down.bmp"
+		"Resources/Skybox/clouds1_north.bmp"
 	};
+
 	unsigned int cubemapTexture = loadCubemap(faces);
 
 
-// Rendering loop
-	//check if we close the window or press the escape button
+
+
+
+	// Setup Dear ImGui
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	(void)io;
+
+	// Setup Dear ImGui style
+	ImGui::StyleColorsDark();
+
+	// Setup Platform/Renderer bindings
+	ImGui_ImplGlfw_InitForOpenGL(window.getWindow(), true);
+	ImGui_ImplOpenGL3_Init("#version 400");
+
+
+
+
+
+	// Rendering loop
+		//check if we close the window or press the escape button
 	while (!window.isPressed(GLFW_KEY_ESCAPE) && glfwWindowShouldClose(window.getWindow()) == 0)
 	{
 		window.clear();
@@ -866,23 +836,43 @@ int main()
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
 
+
+
+		// Start the ImGui frame
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+
+
 		processKeyboardInput();
 
 		processPlayerMovement();
-	/*
-		//test mouse input
-		if (window.isMousePressed(GLFW_MOUSE_BUTTON_LEFT))
-		{
-			std::cout << "Pressing mouse button" << std::endl;
-		}
-	*/
 
-	// Disable depth test for the skybox to ensure it renders behind everything
+
+
+
+		// taskuri
+		if (anticipateCollision(glm::vec3(playerPos.x, playerPos.y - 1.0f, playerPos.z), vector_obiecte.at(0), vector_obiecte.at(1)))
+		{
+			current_task = 1;
+		}
+
+		if (anticipateCollision(glm::vec3(playerPos.x, playerPos.y - 1.0f, playerPos.z), vector_obiecte.at(0), vector_obiecte.at(2)))
+		{
+			current_task = 2;
+		}
+
+
+
+
+
+		// Disable depth test for the skybox to ensure it renders behind everything
 		glDisable(GL_DEPTH_TEST);
 
 		// Update the view matrix (do not translate the camera for skybox)
 		glm::mat4 view = glm::mat4(glm::mat3(glm::lookAt(camera.getCameraPosition(), camera.getCameraPosition() + camera.getCameraViewDirection(), camera.getCameraUp()))); // Remove translation for the skybox
-		glm::mat4 projection = glm::perspective(glm::radians(2000.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+		glm::mat4 projection = glm::perspective(glm::radians(4000.0f), 800.0f / 600.0f, 0.1f, 100.0f);
 
 
 		// Render the skybox
@@ -897,7 +887,7 @@ int main()
 		// Re-enable depth test for the rest of the scene
 		glEnable(GL_DEPTH_TEST);
 
-		 //// Code for the light ////
+		//// Code for the light ////
 
 		sunShader.use();
 
@@ -940,7 +930,7 @@ int main()
 		GLuint MatrixID2 = glGetUniformLocation(shader.getId(), "MVP");
 		GLuint ModelMatrixID = glGetUniformLocation(shader.getId(), "model");
 
-// player mesh
+		// player mesh
 
 		ModelMatrix = glm::mat4(1.0);
 		// translate according to where the controls have moved the player
@@ -962,27 +952,6 @@ int main()
 
 
 
-
-
-
-		///// Test Obj files for suz ////
-
-		for (int i = 0; i < 3; i++)
-		{
-			ModelMatrix = glm::mat4(1.0);
-			ModelMatrix = glm::translate(ModelMatrix, glm::vec3(10.0f * i, 0.0f, 10.0f * i));
-			MVP = ProjectionMatrix * ViewMatrix * ModelMatrix;
-			glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
-			glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
-			glUniform3f(glGetUniformLocation(shader.getId(), "lightColor"), lightColor.x, lightColor.y, lightColor.z);
-			glUniform3f(glGetUniformLocation(shader.getId(), "lightPos"), lightPos.x, lightPos.y, lightPos.z);
-			glUniform3f(glGetUniformLocation(shader.getId(), "viewPos"), camera.getCameraPosition().x, camera.getCameraPosition().y, camera.getCameraPosition().z);
-
-			suz.draw(shader);
-		}
-
-
-
 		///// plane Obj file //////
 
 
@@ -992,74 +961,47 @@ int main()
 		glUniformMatrix4fv(MatrixID2, 1, GL_FALSE, &MVP[0][0]);
 		glUniformMatrix4fv(ModelMatrixID, 1, GL_FALSE, &ModelMatrix[0][0]);
 
-
 		//plane.draw(shader);
+
+
+
+
+		// ImGui window creation goes here
+		ImGui::Begin("Current task:");
+		if (current_task == 1)
+		{
+			ImGui::Text(task1desc.c_str());
+		}
+		if (current_task == 2)
+		{
+			//std::cout << "task2" << std::endl;
+			ImGui::Text(task2desc.c_str());
+		}
+
+		/*
+		if (ImGui::Button("Quit")) {  // Example of a button
+			glfwSetWindowShouldClose(window.getWindow(), true); // Exit on button click
+		}*/
+		ImGui::End();
+
+		// Render ImGui draw data
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 		window.update();
 	}
 
+	// Cleanup
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+
 }
 
 
 
 
 
-
-
-
-// collision between any 2 objects
-bool isColliding(Obiect& a, Obiect& b)
-{
-	// check for overlap along each axis	
-	bool xOverlap = (a.getPosition().x < b.getPosition().x + b.getSize().x)
-		&& (b.getPosition().x < a.getPosition().x + a.getSize().x);
-
-	bool yOverlap = (a.getPosition().y < b.getPosition().y + b.getSize().y)
-		&& (b.getPosition().y < a.getPosition().y + a.getSize().y);
-
-	bool zOverlap = (a.getPosition().z < b.getPosition().z + b.getSize().z)
-		&& (b.getPosition().z < a.getPosition().z + a.getSize().z);
-
-	// collision if all three axes overlap
-	return xOverlap && yOverlap && zOverlap;
-}
-
-// anticipate collision for player object's future position and an object
-// uses a specified future_position, not the current one of Obiect& player
-bool anticipateCollision(glm::vec3 future_position, Obiect& player, Obiect& obiect)
-{
-	// check for overlap along each axis	
-	bool xOverlap = (future_position.x < obiect.getPosition().x + obiect.getSize().x)
-		&& (obiect.getPosition().x < future_position.x + player.getSize().x);
-
-	bool yOverlap = (future_position.y < obiect.getPosition().y + obiect.getSize().y)
-		&& (obiect.getPosition().y < future_position.y + player.getSize().y);
-
-	bool zOverlap = (future_position.z < obiect.getPosition().z + obiect.getSize().z)
-		&& (obiect.getPosition().z < future_position.z + player.getSize().z);
-
-	// collision if all three axes overlap
-	return xOverlap && yOverlap && zOverlap;
-}
-
-
-
-// check collisions between player and objects
-bool checkPlayerCollision(std::vector<Obiect>& vector_obiecte)
-{
-	Obiect& player = vector_obiecte.at(0);
-
-	for (int i = 1; i < vector_obiecte.size(); i++)
-	{
-		// return true if it's colliding
-		if (isColliding(player, vector_obiecte.at(i)))
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
 
 
 
