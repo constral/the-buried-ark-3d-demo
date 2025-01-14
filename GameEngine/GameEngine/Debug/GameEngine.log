@@ -1,14 +1,14 @@
 ﻿  main.cpp
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(353,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(471,22): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(523,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(642,20): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(680,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(705,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(730,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(755,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(789,31): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(846,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(890,21): warning C4018: '<': signed/unsigned mismatch
-C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(360,1): warning C4715: 'getObiectByID': not all control paths return a value
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(497,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(696,22): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(764,21): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(883,20): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(921,21): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(946,21): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(971,21): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(996,21): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(1030,31): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(1087,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(1128,21): warning C4018: '<': signed/unsigned mismatch
+C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\GameEngine\main.cpp(504,1): warning C4715: 'getObiectByID': not all control paths return a value
   GameEngine.vcxproj -> C:\Users\traia\Documents\GitHub\the-buried-ark-3d\GameEngine\Debug\GameEngine.exe

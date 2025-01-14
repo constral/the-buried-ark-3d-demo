@@ -4,18 +4,156 @@
 #include "Model Loading\mesh.h"
 #include "Model Loading\texture.h"
 #include "Model Loading\meshLoaderObj.h"
+#include "stb_image.h"
+#include <glm.hpp>
 
 
+// Vertex shader source code
+const char* skyboxVertexShaderSource = R"GLSL(
+#version 330 core
+layout (location = 0) in vec3 aPos;
+out vec3 TexCoords;
+uniform mat4 view;
+uniform mat4 projection;
+void main() {
+    TexCoords = aPos;  // Pass the vertex position to the fragment shader as texture coordinates
+    vec4 pos = projection * view * vec4(aPos, 1.0);
+    gl_Position = pos.xyww;  // We only need the X and Y coordinates, so Z and W are set to 1.0
+}
+)GLSL";
 
+// Fragment shader source code
+const char* skyboxFragmentShaderSource = R"GLSL(
+#version 330 core
+in vec3 TexCoords;
+out vec4 FragColor;
+uniform samplerCube skybox;  // Texture sampler for the cubemap
+void main() {
+    FragColor = texture(skybox, TexCoords);  // Sample the cubemap texture at the given coordinates
+}
+)GLSL";
+
+// Skybox vertices
+float skyboxVertices[] = {
+	// Positions for the 6 faces of the cube
+	-1.0f,  1.0f, -1.0f,
+	-1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+
+	-1.0f, -1.0f,  1.0f,
+	-1.0f, -1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f, -1.0f,
+	-1.0f,  1.0f,  1.0f,
+	-1.0f, -1.0f,  1.0f,
+
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+
+	-1.0f, -1.0f,  1.0f,
+	-1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f, -1.0f,  1.0f,
+	-1.0f, -1.0f,  1.0f,
+
+	-1.0f,  1.0f, -1.0f,
+	 1.0f,  1.0f, -1.0f,
+	 1.0f,  1.0f,  1.0f,
+	 1.0f,  1.0f,  1.0f,
+	-1.0f,  1.0f,  1.0f,
+	-1.0f,  1.0f, -1.0f,
+
+	-1.0f, -1.0f, -1.0f,
+	-1.0f, -1.0f,  1.0f,
+	 1.0f, -1.0f, -1.0f,
+	 1.0f, -1.0f, -1.0f,
+	-1.0f, -1.0f,  1.0f,
+	 1.0f, -1.0f,  1.0f
+};
+
+
+//load cubemap function
+unsigned int loadCubemap(std::vector<std::string> faces) {
+	unsigned int textureID;
+	glGenTextures(1, &textureID);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+
+	int width, height, nrChannels;
+	for (unsigned int i = 0; i < faces.size(); i++) {
+		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+		if (data) {
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+			stbi_image_free(data);
+			std::cout << "Loaded texture: " << faces[i] << std::endl;  // Debugging line
+		}
+		else {
+			std::cerr << "Failed to load cubemap texture at " << faces[i] << ": " << stbi_failure_reason() << std::endl;
+			stbi_image_free(data);
+		}
+	}
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+	return textureID;
+}
+
+//compile shader function (probabil poate fi folosita cea deja din game engine idk)
+unsigned int compileShader(const char* source, GLenum shaderType) {
+	unsigned int shader = glCreateShader(shaderType);
+	glShaderSource(shader, 1, &source, nullptr);
+	glCompileShader(shader);
+
+	int success;
+	char infoLog[512];
+	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+	if (!success) {
+		glGetShaderInfoLog(shader, 512, nullptr, infoLog);
+		std::cerr << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << std::endl;
+	}
+	return shader;
+}
 
 
 
 // variables for player controls
-glm::vec3 playerPos = glm::vec3(-5.0f, 11.0f, -5.0f);
+glm::vec3 playerPos = glm::vec3(5.0f, 10.0f, 5.0f);
 float playerSpeed = 0.1f;
 float playerAngle = 0.0f;
 
+//create shader program function (probabil poate fi folosita cea din engine din nou)
+unsigned int createShaderProgram(const char* vertexSource, const char* fragmentSource) {
+	unsigned int vertexShader = compileShader(vertexSource, GL_VERTEX_SHADER);
+	unsigned int fragmentShader = compileShader(fragmentSource, GL_FRAGMENT_SHADER);
 
+	unsigned int shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
+
+	int success;
+	char infoLog[512];
+	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+	if (!success) {
+		glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
+		std::cerr << "ERROR::PROGRAM::LINKING_FAILED\n" << infoLog << std::endl;
+	}
+
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
+	return shaderProgram;
+}
 
 
 
@@ -23,10 +161,16 @@ float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
 Window window("Game Engine", 800, 800);
+// pozitia camerei -- foarte corelata cu pozitia player-ului
 Camera camera(glm::vec3(25.0f, -10.0f, 25.0f));		// pozitia camerei
 
 glm::vec3 lightColor = glm::vec3(1.0f);
 glm::vec3 lightPos = glm::vec3(-180.0f, 100.0f, -200.0f);
+
+
+
+
+MeshLoaderObj loader;
 
 
 
@@ -287,10 +431,179 @@ public:
 	}
 
 	// pentru mesh in argument si hitbox transparent
-	//
+	Obiect(int id, glm::vec3 auxposition, glm::vec3 auxsize, std::vector<Texture> textura, Mesh mesh)
+	{
+		Obiect_id = id;
+		position = auxposition;
+		size = auxsize;
 
-	// pentru obiect cu shadere?
-	//
+		/*
+				// "compile" all vertices and indices of defined objects:
+					// retrieve the x and y coords of the top left corner
+				float tl_x = position.x;
+				float tl_y = position.y;
+
+				// compute the other 3 corners using the size and
+				// insert them into the vertices array in the following order: TR, BR, BL, TL
+				float width = size.x;
+				float height = size.y;
+
+
+
+				// BR
+				vertices[0] = tl_x + width;  // x
+				vertices[1] = tl_y;          // y
+				vertices[2] = 0.0f;          // z
+
+				// TR
+				vertices[3] = tl_x + width;  // x
+				vertices[4] = tl_y + height; // y
+				vertices[5] = 0.0f;          // z
+
+				// TL
+				vertices[6] = tl_x;         // x
+				vertices[7] = tl_y + height;// y
+				vertices[8] = 0.0f;         // z
+
+				// BL
+				vertices[9] = tl_x;         // x
+				vertices[10] = tl_y;         // y
+				vertices[11] = 0.0f;         // z
+
+				// Define indices for two triangles that form the rectangle
+				indices[0] = 0; // BR // 0
+				indices[1] = 3; // BL // 3
+				indices[2] = 2; // TL // 2
+
+				indices[3] = 1; // TR
+				indices[4] = 0; // BR
+				indices[5] = 2; // TL
+		*/
+
+		float x = position.x;
+		float y = position.y;
+		float z = position.z;
+
+		float w = size.x;
+		float h = size.y;
+		float d = size.z;
+
+		if (Obiect_id == 0)
+			std::cout << "player y: " << playerPos.y << " | player y + h: " << playerPos.y + h << std::endl;
+
+		std::cout << Obiect_id << ": " << std::endl;
+		std::cout << y << std::endl;
+		std::cout << y + h << std::endl;
+		std::cout << std::endl;
+
+		std::vector<Vertex> vertices = {
+
+			// Front face
+			Vertex(x,       y,       z + d,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f),
+			Vertex(x + w,   y,       z + d,   0.0f, 0.0f, 1.0f,   1.0f, 0.0f),
+			Vertex(x + w,   y + h,   z + d,   0.0f, 0.0f, 1.0f,   1.0f, 1.0f),
+			Vertex(x,       y + h,   z + d,   0.0f, 0.0f, 1.0f,   0.0f, 1.0f),
+
+			// Back face
+			Vertex(x,       y,       z,      0.0f, 0.0f, -1.0f,  1.0f, 0.0f),
+			Vertex(x + w,   y,       z,      0.0f, 0.0f, -1.0f,  0.0f, 0.0f),
+			Vertex(x + w,   y + h,   z,      0.0f, 0.0f, -1.0f,  0.0f, 1.0f),
+			Vertex(x,       y + h,   z,      0.0f, 0.0f, -1.0f,  1.0f, 1.0f),
+
+			// Left face
+			Vertex(x,       y,       z,      -1.0f, 0.0f, 0.0f,  0.0f, 0.0f),
+			Vertex(x,       y,       z + d,  -1.0f, 0.0f, 0.0f,  1.0f, 0.0f),
+			Vertex(x,       y + h,   z + d,  -1.0f, 0.0f, 0.0f,  1.0f, 1.0f),
+			Vertex(x,       y + h,   z,      -1.0f, 0.0f, 0.0f,  0.0f, 1.0f),
+
+			// Right face
+			Vertex(x + w,   y,       z,      1.0f, 0.0f, 0.0f,   0.0f, 0.0f),
+			Vertex(x + w,   y,       z + d,  1.0f, 0.0f, 0.0f,   1.0f, 0.0f),
+			Vertex(x + w,   y + h,   z + d,  1.0f, 0.0f, 0.0f,   1.0f, 1.0f),
+			Vertex(x + w,   y + h,   z,      1.0f, 0.0f, 0.0f,   0.0f, 1.0f),
+
+			// Top face
+			Vertex(x,       y + h,   z,      0.0f, 1.0f, 0.0f,   0.0f, 0.0f),
+			Vertex(x + w,   y + h,   z,      0.0f, 1.0f, 0.0f,   1.0f, 0.0f),
+			Vertex(x + w,   y + h,   z + d,  0.0f, 1.0f, 0.0f,   1.0f, 1.0f),
+			Vertex(x,       y + h,   z + d,  0.0f, 1.0f, 0.0f,   0.0f, 1.0f),
+
+			// Bottom face
+			Vertex(x,       y,       z,      0.0f, -1.0f, 0.0f,  0.0f, 0.0f),
+			Vertex(x + w,   y,       z,      0.0f, -1.0f, 0.0f,  1.0f, 0.0f),
+			Vertex(x + w,   y,       z + d,  0.0f, -1.0f, 0.0f,  1.0f, 1.0f),
+			Vertex(x,       y,       z + d,  0.0f, -1.0f, 0.0f,  0.0f, 1.0f)
+		};
+
+		std::vector<int> indices = {
+
+			// Front face
+			0, 1, 2, 2, 3, 0,
+			// Back face
+			4, 5, 6, 6, 7, 4,
+			// Left face
+			8, 9, 10, 10, 11, 8,
+			// Right face
+			12, 13, 14, 14, 15, 12,
+			// Top face
+			16, 17, 18, 18, 19, 16,
+			// Bottom face
+			20, 21, 22, 22, 23, 20
+
+		};
+
+		/*
+				std::vector<int> indices = {
+					// front
+					0, 1, 2,
+					2, 3, 0,
+					// right
+					1, 5, 6,
+					6, 2, 1,
+					// back
+					7, 6, 5,
+					5, 4, 7,
+					// left
+					4, 0, 3,
+					3, 7, 4,
+					// bottom
+					4, 5, 1,
+					1, 0, 4,
+					// top
+					3, 2, 6,
+					6, 7, 3
+				};
+		*/
+
+		// Create the Mesh object for the cube
+		mesh = Mesh(vertices, indices, textura);
+
+		/*
+				// hitbox loading
+				vert.push_back(Vertex());
+				vert[0].pos = glm::vec3(10.5f, 10.5f, 0.0f);
+				vert[0].textureCoords = glm::vec2(1.0f, 1.0f);
+
+				vert.push_back(Vertex());
+				vert[1].pos = glm::vec3(10.5f, -10.5f, 0.0f);
+				vert[1].textureCoords = glm::vec2(1.0f, 0.0f);
+
+				vert.push_back(Vertex());
+				vert[2].pos = glm::vec3(-10.5f, -10.5f, 0.0f);
+				vert[2].textureCoords = glm::vec2(0.0f, 0.0f);
+
+				vert.push_back(Vertex());
+				vert[3].pos = glm::vec3(-10.5f, 10.5f, 0.0f);
+				vert[3].textureCoords = glm::vec2(0.0f, 1.0f);
+
+				vert[0].normals = glm::normalize(glm::cross(vert[1].pos - vert[0].pos, vert[3].pos - vert[0].pos));
+				vert[1].normals = glm::normalize(glm::cross(vert[2].pos - vert[1].pos, vert[0].pos - vert[1].pos));
+				vert[2].normals = glm::normalize(glm::cross(vert[3].pos - vert[2].pos, vert[1].pos - vert[2].pos));
+				vert[3].normals = glm::normalize(glm::cross(vert[0].pos - vert[3].pos, vert[2].pos - vert[3].pos));
+
+				Mesh mesh(vert, ind, textura);*/
+	}
+	
 
 
 
@@ -399,7 +712,6 @@ int main()
 	Shader sunShader("Shaders/sun_vertex_shader.glsl", "Shaders/sun_fragment_shader.glsl");
 
 
-
 // Textures
 
 	GLuint tex = loadBMP("Resources/Textures/wood.bmp");
@@ -425,7 +737,6 @@ int main()
 
 // Meshes
 
-	MeshLoaderObj loader;
 	Mesh sun = loader.loadObj("Resources/Models/sphere.obj");
 	Mesh suz = loader.loadObj("Resources/Models/suzanne.obj", textures);
 	Mesh plane = loader.loadObj("Resources/Models/plane1.obj", textures2);
@@ -437,23 +748,83 @@ int main()
 
 
 
-// Obiecte
+	// Obiecte
 
-	// daca nu incepe playerul la -20 se buleste absolut tot legat de coliziunile pe Y
-	// daca nu incepe de la x=0 si z=0, se strica de la offsetul din clasa de camera (dar nu stau sa-l automatizez)
-	vector_obiecte.push_back(Obiect(0, glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(3.0f, 10.0f, 3.0f), textures3));
-	vector_obiecte.push_back(Obiect(1, glm::vec3(-30.0f, 0.0f, -30.0f), glm::vec3(70.0f, 10.0f, 70.0f), textures));
-	vector_obiecte.push_back(Obiect(2, glm::vec3(20.0f, -30.0f, 20.0f), glm::vec3(10.0f, 70.0f, 30.0f), textures2));
-
-
-	vector_obiecte.push_back(Obiect(10, glm::vec3(0.0f, 10.0f, 0.0f), glm::vec3(52.0f, 20.0f, 4.0f), textures2));
-	vector_obiecte.push_back(Obiect(11, glm::vec3(48.0f, 10.0f, 5.0f), glm::vec3(4.0f, 20.0f, 28.0f), textures2));
-	vector_obiecte.push_back(Obiect(12, glm::vec3(10.0f, 10.0f, 19.0f), glm::vec3(38.0f, 20.0f, 4.0f), textures2));
-	vector_obiecte.push_back(Obiect(13, glm::vec3(5.0f, 10.0f, 10.0f), glm::vec3(38.0f, 20.0f, 4.0f), textures2));
-	vector_obiecte.push_back(Obiect(14, glm::vec3(0.0f, 10.0f, 5.0f), glm::vec3(5.0f, 20.0f, 47.0f), textures2));
-	vector_obiecte.push_back(Obiect(15, glm::vec3(10.0f, 10.0f, 25.0f), glm::vec3(5.0f, 20.0f, 20.0f), textures2));
+		// daca nu incepe playerul la -20 se buleste absolut tot legat de coliziunile pe Y
+		// daca nu incepe de la x=0 si z=0, se strica de la offsetul din clasa de camera (dar nu stau sa-l automatizez)
+	vector_obiecte.push_back(Obiect(0, glm::vec3(0.0f, -20.0f, 0.0f), glm::vec3(2.0f, 5.0f, 2.0f), textures3));
+	vector_obiecte.push_back(Obiect(1, glm::vec3(-50.0f, 0.0f, -50.0f), glm::vec3(200.0f, 10.0f, 200.0f), textures));
 
 
+	// labirint
+	float predef_height = 1.0f;
+	float predef_height_length = 10.0f;
+	{
+		vector_obiecte.push_back(Obiect(10, glm::vec3(1.1372855, predef_height, 0.42250618), glm::vec3(52.440838, predef_height_length, 4.5908861), textures2));
+		vector_obiecte.push_back(Obiect(11, glm::vec3(87.200981, predef_height, 11.013816), glm::vec3(42.580688, predef_height_length, 4.61971), textures2));
+		vector_obiecte.push_back(Obiect(12, glm::vec3(96.55674, predef_height, 0.82457626), glm::vec3(42.580688, predef_height_length, 4.61971), textures2));
+		vector_obiecte.push_back(Obiect(13, glm::vec3(68.274307, predef_height, 29.346987), glm::vec3(14.096099, predef_height_length, 4.7329602), textures2));
+		vector_obiecte.push_back(Obiect(14, glm::vec3(58.890327, predef_height, 14.485009), glm::vec3(14.096099, predef_height_length, 4.7329602), textures2));
+		vector_obiecte.push_back(Obiect(15, glm::vec3(49.221619, predef_height, 29.114639), glm::vec3(14.096099, predef_height_length, 4.7329602), textures2));
+		vector_obiecte.push_back(Obiect(16, glm::vec3(39.316532, predef_height, 48.116287), glm::vec3(14.096099, predef_height_length, 4.7329602), textures2));
+		vector_obiecte.push_back(Obiect(17, glm::vec3(58.683502, predef_height, 47.952427), glm::vec3(14.096099, predef_height_length, 4.7329602), textures2));
+		vector_obiecte.push_back(Obiect(18, glm::vec3(53.841625, predef_height, 0.68185288), glm::vec3(52.440838, predef_height_length, 4.5908861), textures2));
+		vector_obiecte.push_back(Obiect(19, glm::vec3(58.569191, predef_height, 19.65799), glm::vec3(52.440838, predef_height_length, 4.5908861), textures2));
+		vector_obiecte.push_back(Obiect(20, glm::vec3(58.121952, predef_height, 67.378357), glm::vec3(52.440838, predef_height_length, 4.5908861), textures2));
+		vector_obiecte.push_back(Obiect(21, glm::vec3(48.947918, predef_height, 5.0133924), glm::vec3(4.6302085, predef_height_length, 28.631697), textures2));
+		vector_obiecte.push_back(Obiect(22, glm::vec3(77.423111, predef_height, 38.952435), glm::vec3(4.6302085, predef_height_length, 28.631697), textures2));
+		vector_obiecte.push_back(Obiect(23, glm::vec3(23.772322, predef_height, 19.659969), glm::vec3(38.175598, predef_height_length, 4.5357141), textures2));
+		vector_obiecte.push_back(Obiect(24, glm::vec3(5.8586307, predef_height, 24.224565), glm::vec3(38.175598, predef_height_length, 4.4412203), textures2));
+		vector_obiecte.push_back(Obiect(25, glm::vec3(30.078815, predef_height, 39.088078), glm::vec3(38.175598, predef_height_length, 4.4412203), textures2));
+		vector_obiecte.push_back(Obiect(26, glm::vec3(40.222961, predef_height, 77.017509), glm::vec3(38.175598, predef_height_length, 4.4412203), textures2));
+		vector_obiecte.push_back(Obiect(27, glm::vec3(1.1372855, predef_height, 5.0133924), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
+		vector_obiecte.push_back(Obiect(28, glm::vec3(135.11575, predef_height, 48.431767), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
+		vector_obiecte.push_back(Obiect(29, glm::vec3(135.07138, predef_height, 0.94643623), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
+		vector_obiecte.push_back(Obiect(30, glm::vec3(0.69528389, predef_height, 52.724197), glm::vec3(4.8158398, predef_height_length, 47.813984), textures2));
+		vector_obiecte.push_back(Obiect(31, glm::vec3(31.772322, predef_height, 24.195683), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(32, glm::vec3(58.278927, predef_height, 19.900898), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(33, glm::vec3(68.221611, predef_height, 0.36067444), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(34, glm::vec3(125.05869, predef_height, 34.015962), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(35, glm::vec3(77.557251, predef_height, 35.186513), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(36, glm::vec3(36.736322, predef_height, 58.329948), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(37, glm::vec3(125.08556, predef_height, 48.189827), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(38, glm::vec3(125.00494, predef_height, 76.876305), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(39, glm::vec3(115.47031, predef_height, 58.212864), glm::vec3(4.6395726, predef_height_length, 32.193371), textures2));
+		vector_obiecte.push_back(Obiect(40, glm::vec3(29.447573, predef_height, 39.164627), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(41, glm::vec3(39.413097, predef_height, 57.968845), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(42, glm::vec3(67.986763, predef_height, 43.052795), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(43, glm::vec3(68.399063, predef_height, 29.248795), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(44, glm::vec3(86.899773, predef_height, 24.259315), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(45, glm::vec3(96.581886, predef_height, 38.646191), glm::vec3(4.6978688, predef_height_length, 22.897234), textures2));
+		vector_obiecte.push_back(Obiect(46, glm::vec3(115.78501, predef_height, 14.060096), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(47, glm::vec3(476.15121, predef_height, 33.124878), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(48, glm::vec3(116.00485, predef_height, 38.996563), glm::vec3(4.7707243, predef_height_length, 13.615655), textures2));
+		vector_obiecte.push_back(Obiect(49, glm::vec3(48.977024, predef_height, 52.400517), glm::vec3(4.7247019, predef_height_length, 19.182293), textures2));
+		vector_obiecte.push_back(Obiect(50, glm::vec3(5.953125, predef_height, 48.386162), glm::vec3(19.087799, predef_height_length, 4.4412169), textures2));
+		vector_obiecte.push_back(Obiect(51, glm::vec3(20.355036, predef_height, 57.917809), glm::vec3(19.087799, predef_height_length, 4.4412169), textures2));
+		vector_obiecte.push_back(Obiect(52, glm::vec3(87.385323, predef_height, 76.828835), glm::vec3(28.379045, predef_height_length, 4.3780298), textures2));
+		vector_obiecte.push_back(Obiect(53, glm::vec3(20.453715, predef_height, 29.298363), glm::vec3(4.6302099, predef_height_length, 19.087799), textures2));
+		vector_obiecte.push_back(Obiect(54, glm::vec3(38.960194, predef_height, 29.471451), glm::vec3(4.6764565, predef_height_length, 13.521385), textures2));
+		vector_obiecte.push_back(Obiect(55, glm::vec3(87.131828, predef_height, 48.636959), glm::vec3(4.6764565, predef_height_length, 13.521385), textures2));
+		vector_obiecte.push_back(Obiect(56, glm::vec3(25.040924, predef_height, 29.298363), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
+		vector_obiecte.push_back(Obiect(57, glm::vec3(116.15706, predef_height, 38.605915), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
+		vector_obiecte.push_back(Obiect(58, glm::vec3(96.775284, predef_height, 29.424734), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
+		vector_obiecte.push_back(Obiect(59, glm::vec3(96.666504, predef_height, 57.865437), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
+		vector_obiecte.push_back(Obiect(60, glm::vec3(160.89089, predef_height, 57.561897), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
+		vector_obiecte.push_back(Obiect(61, glm::vec3(116.31538, predef_height, 86.402695), glm::vec3(13.256493, predef_height_length, 4.4898448), textures2));
+		vector_obiecte.push_back(Obiect(62, glm::vec3(126.08751, predef_height, 29.208355), glm::vec3(9.0231743, predef_height_length, 4.5328393), textures2));
+		vector_obiecte.push_back(Obiect(63, glm::vec3(87.388481, predef_height, 48.451759), glm::vec3(9.0231743, predef_height_length, 4.5328393), textures2));
+		vector_obiecte.push_back(Obiect(64, glm::vec3(125.6228, predef_height, 67.226462), glm::vec3(9.0231743, predef_height_length, 4.5328393), textures2));
+		vector_obiecte.push_back(Obiect(65, glm::vec3(5.8175478, predef_height, 76.932739), glm::vec3(9.0231743, predef_height_length, 4.5328393), textures2));
+		vector_obiecte.push_back(Obiect(66, glm::vec3(53.904575, predef_height, 57.94318), glm::vec3(9.0231743, predef_height_length, 4.5328393), textures2));
+		vector_obiecte.push_back(Obiect(67, glm::vec3(15.369582, predef_height, 67.465652), glm::vec3(19.087797, predef_height_length, 4.4412198), textures2));
+	}
+
+	// stalpi de parkour
+	vector_obiecte.push_back(Obiect(68, glm::vec3(-7.1494594, 10.0f, -6.4780231), glm::vec3(5.278573, 7.0f, 4.7440343), textures2));
+	vector_obiecte.push_back(Obiect(69, glm::vec3(-17.305702, 10.0f, -11.489327), glm::vec3(5.0781207, 12.0f, 4.4767647), textures2));
+	vector_obiecte.push_back(Obiect(70, glm::vec3(-13.102751, 10.0f, -23.656635), glm::vec3(4.7977629, 17.0f, 4.597311), textures2));
+	vector_obiecte.push_back(Obiect(71, glm::vec3(-13.3408689, 10.0f, -36.34539), glm::vec3(25.79151, 22.0f, 5.1449385), textures2));
 
 
 
@@ -461,6 +832,29 @@ int main()
 
 
 
+	// Compile and link skybox shaders
+	unsigned int skyboxShader = createShaderProgram(skyboxVertexShaderSource, skyboxFragmentShaderSource);
+
+	// Setup skybox VAO and VBO
+	unsigned int skyboxVAO, skyboxVBO;
+	glGenVertexArrays(1, &skyboxVAO);
+	glGenBuffers(1, &skyboxVBO);
+	glBindVertexArray(skyboxVAO);
+	glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+	// Load cubemap textures
+	std::vector<std::string> faces = {
+		"Resources/Skybox/clouds1_up.bmp",
+		"Resources/Skybox/clouds1_west.bmp",
+		"Resources/Skybox/clouds1_east.bmp",
+		"Resources/Skybox/clouds1_south.bmp",
+		"Resources/Skybox/clouds1_north.bmp",
+		"Resources/Skybox/clouds1_down.bmp"
+	};
+	unsigned int cubemapTexture = loadCubemap(faces);
 
 
 // Rendering loop
@@ -483,9 +877,25 @@ int main()
 		}
 	*/
 
+	// Disable depth test for the skybox to ensure it renders behind everything
+		glDisable(GL_DEPTH_TEST);
+
+		// Update the view matrix (do not translate the camera for skybox)
+		glm::mat4 view = glm::mat4(glm::mat3(glm::lookAt(camera.getCameraPosition(), camera.getCameraPosition() + camera.getCameraViewDirection(), camera.getCameraUp()))); // Remove translation for the skybox
+		glm::mat4 projection = glm::perspective(glm::radians(2000.0f), 800.0f / 600.0f, 0.1f, 100.0f);
 
 
+		// Render the skybox
+		glUseProgram(skyboxShader);
+		glUniformMatrix4fv(glGetUniformLocation(skyboxShader, "view"), 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(glGetUniformLocation(skyboxShader, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
 
+		glBindVertexArray(skyboxVAO);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		// Re-enable depth test for the rest of the scene
+		glEnable(GL_DEPTH_TEST);
 
 		 //// Code for the light ////
 
@@ -669,11 +1079,11 @@ void processKeyboardInput()
 
 
 	//translation -- playerPos TREB SA TINA CONT de getCameraViewDirection() (nu face miscare din laterale, se misca invers)
-	
+
 	if (window.isPressed(GLFW_KEY_W))
 	{
 		glm::vec3 future_pos_w = playerCenterPos + glm::vec3(1.0f, 0.0f, 1.0f) * camera.getCameraViewDirection() * cameraSpeed * playerSpeed * 20.0f;
-		
+
 		bool will_collide = 0;
 
 		// check whether it'll collide with any object
@@ -683,7 +1093,7 @@ void processKeyboardInput()
 			if (anticipateCollision(future_pos_w, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
 			{
 				will_collide = 1;
-				std::cout << "will collide on W" << std::endl;
+				///std::cout << "will collide on W" << std::endl;
 			}
 		}
 
@@ -708,7 +1118,7 @@ void processKeyboardInput()
 			if (anticipateCollision(future_pos_s, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
 			{
 				will_collide = 1;
-				std::cout << "will collide on S" << std::endl;
+				//std::cout << "will collide on S" << std::endl;
 			}
 		}
 
@@ -733,7 +1143,7 @@ void processKeyboardInput()
 			if (anticipateCollision(future_pos_a, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
 			{
 				will_collide = 1;
-				std::cout << "will collide on A" << std::endl;
+				//std::cout << "will collide on A" << std::endl;
 			}
 		}
 
@@ -758,7 +1168,7 @@ void processKeyboardInput()
 			if (anticipateCollision(future_pos_d, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
 			{
 				will_collide = 1;
-				std::cout << "will collide on D" << std::endl;
+				//std::cout << "will collide on D" << std::endl;
 			}
 		}
 
@@ -769,16 +1179,16 @@ void processKeyboardInput()
 			camera.keyboardMoveRight(cameraSpeed);
 		}
 	}
-/*
-	if (window.isPressed(GLFW_KEY_R))
-	{
-		camera.keyboardMoveUp(cameraSpeed);
-	}
-	if (window.isPressed(GLFW_KEY_F))
-	{
-		camera.keyboardMoveDown(cameraSpeed);
-	}
-*/
+	/*
+		if (window.isPressed(GLFW_KEY_R))
+		{
+			camera.keyboardMoveUp(cameraSpeed);
+		}
+		if (window.isPressed(GLFW_KEY_F))
+		{
+			camera.keyboardMoveDown(cameraSpeed);
+		}
+	*/
 
 
 
@@ -847,7 +1257,7 @@ void processPlayerMovement()
 		deltaJumpTime = currentJumpFrame - firstJumpFrame;
 		float normalizedTime = (deltaJumpTime / jumpDuration) * 3.1456f;
 
-		const float radius =  jumpHeight;
+		const float radius = jumpHeight;
 		float cosinus = cos(normalizedTime);							// values (1, 0)
 		playerPos.y = initialJumpHeight + (-1.0f + cosinus) * -radius;	// values (0, jumpHeight)
 
@@ -889,7 +1299,7 @@ void processPlayerMovement()
 			if (anticipateCollision(future_pos_y, vector_obiecte.at(0), vector_obiecte.at(i)) == 1)
 			{
 				will_collide = 1;
-				std::cout << "not falling" << std::endl;
+				//std::cout << "not falling" << std::endl;
 			}
 		}
 
@@ -900,9 +1310,10 @@ void processPlayerMovement()
 			playerPos.y += -gravity;
 			camera.verticalMovement(-gravity * 0.5f);
 
-			std::cout << "FALLING" << std::endl;
+			//std::cout << "FALLING" << std::endl;
 		}
 		else
 			standing = 1;
 	}
 }
+
